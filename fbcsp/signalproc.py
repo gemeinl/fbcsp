@@ -6,6 +6,7 @@ import scipy as sp
 from braindecode.datautil.signal_target import SignalAndTarget
 from braindecode.datautil.signalproc import bandpass_cnt
 from braindecode.mne_ext.signalproc import mne_apply
+from .pyriemann_ext import mean_riemann
 
 
 def bandpass_mne(cnt, low_cut_hz, high_cut_hz, filt_order=3, axis=0):
@@ -139,8 +140,14 @@ def calculate_csp(epo, classes=None, average_trial_covariance=False):
     epo2 = select_classes(epo, [cidx2])
     if average_trial_covariance:
         # computing c1 as mean covariance  of trial covariances:
-        c1 = np.mean([np.cov(x) for x in epo1.X], axis=0)
-        c2 = np.mean([np.cov(x) for x in epo2.X], axis=0)
+        # c1 = np.mean([np.cov(x) for x in epo1.X], axis=0)
+        # c2 = np.mean([np.cov(x) for x in epo2.X], axis=0)
+
+        # using the riemannian mean taken from pyriemann
+        # covariance matrices are symmetric positive definite matrices
+        # for those, the arithmetic mean is suboptimal
+        c1 = mean_riemann([np.cov(x) for x in epo1.X])
+        c2 = mean_riemann([np.cov(x) for x in epo2.X])
     else:
         # we need a matrix of the form (channels, observations) so we stack trials
         # and time per channel together
