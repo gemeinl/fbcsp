@@ -131,8 +131,10 @@ def calculate_covariance_matrices(epo, classes=None, average_trial_covariance=Fa
         # covariance matrices are symmetric positive definite matrices
         # for those, the arithmetic mean is suboptimal
         log.debug("computing riemannian mean of trial covariances")
-        c1 = np.array(mean_riemann([np.cov(x) for x in epo1.X]))
-        c2 = np.array(mean_riemann([np.cov(x) for x in epo2.X]))
+        c1 = np.array([np.cov(x) for x in epo1.X])
+        c2 = np.array([np.cov(x) for x in epo2.X])
+        c1 = mean_riemann(c1)
+        c2 = mean_riemann(c2)
     else:
         # we need a matrix of the form (channels, observations) so we stack trials
         # and time per channel together
