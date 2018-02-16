@@ -2,11 +2,14 @@ from copy import deepcopy
 
 import numpy as np
 import scipy as sp
+import logging
 
 from braindecode.datautil.signal_target import SignalAndTarget
 from braindecode.datautil.signalproc import bandpass_cnt
 from braindecode.mne_ext.signalproc import mne_apply
 from .pyriemann_ext import mean_riemann
+
+log = logging.getLogger(__name__)
 
 
 def bandpass_mne(cnt, low_cut_hz, high_cut_hz, filt_order=3, axis=0):
@@ -127,6 +130,7 @@ def calculate_covariance_matrices(epo, classes=None, average_trial_covariance=Fa
         # using the riemannian mean taken from pyriemann
         # covariance matrices are symmetric positive definite matrices
         # for those, the arithmetic mean is suboptimal
+        log.debug("computing riemannian mean of trial covariances")
         c1 = mean_riemann([np.cov(x) for x in epo1.X])
         c2 = mean_riemann([np.cov(x) for x in epo2.X])
     else:
