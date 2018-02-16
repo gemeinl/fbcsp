@@ -3,29 +3,15 @@ import numpy
 from scipy import linalg
 
 
-def expm(Ci):
-    """Return the matrix exponential of a covariance matrix defined by :
-    .. math::
-            \mathbf{C} = \mathbf{V} \exp{(\mathbf{\Lambda})} \mathbf{V}^T
-    where :math:`\mathbf{\Lambda}` is the diagonal matrix of eigenvalues
-    and :math:`\mathbf{V}` the eigenvectors of :math:`\mathbf{Ci}`
-    :param Ci: the coavriance matrix
-    :returns: the matrix exponential
-    """
-    return _matrix_operator(Ci, numpy.exp)
-
-
-def invsqrtm(Ci):
-    """Return the inverse matrix square root of a covariance matrix defined by :
-    .. math::
-            \mathbf{C} = \mathbf{V} \left( \mathbf{\Lambda} \\right)^{-1/2} \mathbf{V}^T
-    where :math:`\mathbf{\Lambda}` is the diagonal matrix of eigenvalues
-    and :math:`\mathbf{V}` the eigenvectors of :math:`\mathbf{Ci}`
-    :param Ci: the coavriance matrix
-    :returns: the inverse matrix square root
-    """
-    isqrt = lambda x: 1. / numpy.sqrt(x)
-    return _matrix_operator(Ci, isqrt)
+# taken from pyriemann.base
+def _matrix_operator(Ci, operator):
+    """matrix equivalent of an operator."""
+    if Ci.dtype.char in typecodes['AllFloat'] and not numpy.isfinite(Ci).all():
+        raise ValueError("Covariance matrices must be positive definite. Add regularization to avoid this error.")
+    eigvals, eigvects = linalg.eigh(Ci, check_finite=False)
+    eigvals = numpy.diag(operator(eigvals))
+    Out = numpy.dot(numpy.dot(eigvects, eigvals), eigvects.T)
+    return Out
 
 
 def sqrtm(Ci):
@@ -52,16 +38,32 @@ def logm(Ci):
     return _matrix_operator(Ci, numpy.log)
 
 
-def _matrix_operator(Ci, operator):
-    """matrix equivalent of an operator."""
-    if Ci.dtype.char in typecodes['AllFloat'] and not numpy.isfinite(Ci).all():
-        raise ValueError("Covariance matrices must be positive definite. Add regularization to avoid this error.")
-    eigvals, eigvects = linalg.eigh(Ci, check_finite=False)
-    eigvals = numpy.diag(operator(eigvals))
-    Out = numpy.dot(numpy.dot(eigvects, eigvals), eigvects.T)
-    return Out
+def expm(Ci):
+    """Return the matrix exponential of a covariance matrix defined by :
+    .. math::
+            \mathbf{C} = \mathbf{V} \exp{(\mathbf{\Lambda})} \mathbf{V}^T
+    where :math:`\mathbf{\Lambda}` is the diagonal matrix of eigenvalues
+    and :math:`\mathbf{V}` the eigenvectors of :math:`\mathbf{Ci}`
+    :param Ci: the coavriance matrix
+    :returns: the matrix exponential
+    """
+    return _matrix_operator(Ci, numpy.exp)
 
 
+def invsqrtm(Ci):
+    """Return the inverse matrix square root of a covariance matrix defined by :
+    .. math::
+            \mathbf{C} = \mathbf{V} \left( \mathbf{\Lambda} \\right)^{-1/2} \mathbf{V}^T
+    where :math:`\mathbf{\Lambda}` is the diagonal matrix of eigenvalues
+    and :math:`\mathbf{V}` the eigenvectors of :math:`\mathbf{Ci}`
+    :param Ci: the coavriance matrix
+    :returns: the inverse matrix square root
+    """
+    isqrt = lambda x: 1. / numpy.sqrt(x)
+    return _matrix_operator(Ci, isqrt)
+
+
+# taken from pyriemann.utils.mean
 def _get_sample_weight(sample_weight, data):
     """Get the sample weights.
     If none provided, weights init to 1. otherwise, weights are normalized.

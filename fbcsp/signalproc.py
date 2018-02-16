@@ -49,6 +49,7 @@ def select_trials_cnt(cnt, inds):
     cnt.info['events'] = np.array(new_events)
     return cnt
 
+
 def concatenate_channels(datasets):
     all_X = [dataset.X for dataset in datasets]
     new_X = np.concatenate(all_X, axis=1)
@@ -68,26 +69,14 @@ def extract_all_start_codes(name_to_start_codes):
     return all_start_codes
 
 
-def calculate_csp(epo, classes=None, average_trial_covariance=False):
-    """Calculate the Common Spatial Pattern (CSP) for two classes.
-    Now with pattern computation as in matlab bbci toolbox
-    https://github.com/bbci/bbci_public/blob/c7201e4e42f873cced2e068c6cbb3780a8f8e9ec/processing/proc_csp.m#L112
+def calculate_covariance_matrices(epo, classes=None, average_trial_covariance=False):
+    """Calculate the covariance matrices for two classes.
 
-    This method calculates the CSP and the corresponding filters. Use
-    the columns of the patterns and filters.
+    This method calculates the covariance matrices from trials of two classes.
     Examples
     --------
-    Calculate the CSP for the first two classes::
-    >>> w, a, d = calculate_csp(epo)
-    >>> # Apply the first two and the last two columns of the sorted
-    >>> # filter to the data
-    >>> filtered = apply_spatial_filter(epo, w[:, [0, 1, -2, -1]])
-    >>> # You'll probably want to get the log-variance along the time
-    >>> # axis, this should result in four numbers (one for each
-    >>> # channel)
-    >>> filtered = np.log(np.var(filtered, 0))
-    Select two classes manually::
-    >>> w, a, d = calculate_csp(epo, [2, 5])
+    Calculate the covariance matrices for the first two classes::
+    >>> c1, c2 = calculate_covariance_matrices(epo)
     Parameters
     ----------
     epo : epoched Data object
@@ -99,13 +88,11 @@ def calculate_csp(epo, classes=None, average_trial_covariance=False):
         indices can be manually chosen by setting ``classes``
     Returns
     -------
-    v : 2d array
-        the sorted spatial filters
-    a : 2d array
-        the sorted spatial patterns. Column i of a represents the
-        pattern of the filter in column i of v.
-    d : 1d array
-        the variances of the components
+    c1 : 2d array
+        covariance matrices of class 1 n_channels x n_channels
+    c2 : 2d array
+        covariance matrices of class 2 n_channels x n_channels
+
     Raises
     ------
     AssertionError :
@@ -115,15 +102,9 @@ def calculate_csp(epo, classes=None, average_trial_covariance=False):
             not found in the ``epo``
           * ``classes`` is ``None`` but there are less than two
             different classes in the ``epo``
-    See Also
-    --------
-    :func:`apply_spatial_filter`, :func:`apply_csp`, :func:`calculate_spoc`
-    References
-    ----------
-    http://en.wikipedia.org/wiki/Common_spatial_pattern
     """
     if classes is None:
-        # automagically find the first two different classidx
+        # automatically find the first two different classidx
         # we don't use uniq, since it sorts the classidx first
         # first check if we have a least two diffeent idxs:
         unique_classes = np.unique(epo.y)
@@ -156,6 +137,49 @@ def calculate_csp(epo, classes=None, average_trial_covariance=False):
         # compute covariance matrices of the two classes
         c1 = np.cov(x1)
         c2 = np.cov(x2)
+    return c1, c2
+
+
+def calculate_csp(c1, c2):
+    """Calculate the Common Spatial Pattern (CSP) for two classes.
+    Now with pattern computation as in matlab bbci toolbox
+    https://github.com/bbci/bbci_public/blob/c7201e4e42f873cced2e068c6cbb3780a8f8e9ec/processing/proc_csp.m#L112
+
+    This method calculates the CSP and the corresponding filters. Use
+    the columns of the patterns and filters.
+    Examples
+    --------
+    Calculate the CSP for the first two classes::
+    >>> w, a, d = calculate_csp(c1, c2)
+    >>> # Apply the first two and the last two columns of the sorted
+    >>> # filter to the data
+    >>> filtered = apply_csp_fast(epo, w[:, [0, 1, -2, -1]])
+    >>> # You'll probably want to get the log-variance along the time
+    >>> # axis, this should result in four numbers (one for each
+    >>> # channel)
+    >>> filtered = apply_csp_var_log(epo, w[:, [0, 1, -2, -1]])
+    Select two classes manually::
+    >>> w, a, d = calculate_csp(c1, c2, [2, 5])
+    Parameters
+    ----------
+    c1 : ndarray covariance matrix of first class n_channels x n_channels
+    c2 : ndarray covariance matrix of second class n_channels x n_channels
+    Returns
+    -------
+    v : 2d array
+        the sorted spatial filters
+    a : 2d array
+        the sorted spatial patterns. Column i of a represents the
+        pattern of the filter in column i of v.
+    d : 1d array
+        the variances of the components
+    See Also
+    --------
+    :func:`apply_spatial_filter`, :func:`apply_csp`, :func:`calculate_spoc`
+    References
+    ----------
+    http://en.wikipedia.org/wiki/Common_spatial_pattern
+    """
     # solution of csp objective via generalized eigenvalue problem
     # in matlab the signature is v, d = eig(a, b)
 
@@ -228,8 +252,8 @@ def apply_csp_fast(epo, filt, columns=[0, -1]):
 
     Examples
     --------
-
-    >>> w, a, d = calculate_csp(epo)
+    >>> c1, c2 = calculate_covariance_matrices(epo)
+    >>> w, a, d = calculate_csp(c1, c2)
     >>> epo = apply_csp_fast(epo, w)
 
     See Also

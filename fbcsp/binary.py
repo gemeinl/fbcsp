@@ -3,7 +3,7 @@ import numpy as np
 from braindecode.datautil.trial_segment import create_signal_target_from_raw_mne
 from .lda import lda_train_scaled, lda_apply
 from .signalproc import bandpass_mne, select_trials, select_classes, \
-    calculate_csp, apply_csp_var_log
+    calculate_covariance_matrices, calculate_csp, apply_csp_var_log
 
 log = logging.getLogger(__name__)
 
@@ -61,10 +61,14 @@ class BinaryCSP(object):
         self.train_labels[fold_nr][pair_nr] = epo_train_pair.y
         self.test_labels[fold_nr][pair_nr] = epo_test_pair.y
         
+        ## Calculate covariance matrices
+        cov_matrix1, cov_matrix2 = calculate_covariance_matrices(
+            epo_train_pair,
+            average_trial_covariance=self.average_trial_covariance
+        )
         ## Calculate CSP
         filters, patterns, variances = calculate_csp(
-            epo_train_pair,
-            average_trial_covariance=self.average_trial_covariance)
+            cov_matrix1, cov_matrix2)
         ## Apply csp, calculate features
         if self.n_filters is not None:
             # take topmost and bottommost filters, e.g.
